@@ -5,7 +5,7 @@ import "core:math/rand"
 import rl "vendor:raylib"
 
 // Import the ECS from the parent directory
-import ecs "../" 
+import ecs "../ecs" 
 
 // --- Components ---
 // We use distinct to ensure type safety (e.g., distinguishing Position from Velocity)
