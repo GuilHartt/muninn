@@ -128,28 +128,6 @@ remove_raw :: proc(world: ^World, entity: Entity, id: Entity) {
 }
 
 @private
-set_id :: proc(world: ^World, entity: Entity, id: Entity) {
-    if id_is_pair(id) {
-        relation := id_pair_first(id)
-        target   := id_pair_second(id)
-        
-        record := &world.entity_index[entity_id_idx(entity)]
-        if arch := record.archetype; arch != nil {
-            for type in arch.types {
-                if id_is_pair(type) && id_pair_first(type) == relation {
-                    if id_pair_second(type) != target {
-                        remove_raw(world, entity, type)
-                    }
-                    break 
-                }
-            }
-        }
-    }
-
-    add_raw(world, entity, id, nil)
-}
-
-@private
 get_raw :: proc(world: ^World, entity: Entity, id: Entity) -> rawptr {
     if !is_alive(world, entity) do return nil
 
@@ -291,6 +269,15 @@ move_entity :: proc(world: ^World, entity: Entity, new_arch: ^Archetype) -> int 
     record := &world.entity_index[entity_id_idx(entity)]
     old_arch := record.archetype
     old_row := record.row
+
+    if new_arch == nil {
+        if old_arch != nil {
+            remove_entity_row(world, old_arch, old_row)
+        }
+        record.archetype = nil
+        record.row = -1
+        return -1
+    }
 
     new_row := append_entity_to_archetype(world, new_arch, entity)
 
