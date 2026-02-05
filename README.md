@@ -7,6 +7,7 @@
 </picture>
 </a>
 
+[![Testing Status](https://github.com/GuilHartt/muninn/actions/workflows/test.yml/badge.svg)](https://github.com/GuilHartt/muninn/actions/workflows/test.yml)
 [![License](https://img.shields.io/badge/license-zlib-blue)](LICENSE)
 [![Language](https://img.shields.io/badge/language-Odin-orange)](https://odin-lang.org/)
 [![GitHub](https://img.shields.io/badge/github-repo-blue?logo=github)](https://github.com/GuilHartt/muninn)
