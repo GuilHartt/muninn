@@ -5,6 +5,13 @@ ID_PAIR_FLAG :: 0x8000_0000_0000_0000
 Entity   :: distinct u64
 Wildcard :: Entity(0)
 
+Component :: union { Entity, typeid }
+
+Pair :: struct {
+    relation: Component,
+    target:   Component,
+}
+
 TypeInfo :: struct {
     id:    Entity,
     size:  int,

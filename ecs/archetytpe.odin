@@ -33,10 +33,7 @@ get_view :: proc(world: ^World, arch: ^Archetype, $T: typeid) -> []T {
 get_archetypes :: proc {
     get_archetypes_type,
     get_archetypes_id,
-    get_archetypes_pair_id_id,
-    get_archetypes_pair_type_id,
-    get_archetypes_pair_id_type,
-    get_archetypes_pair_type_type,
+    get_archetypes_pair,
 }
 
 @private
@@ -53,29 +50,12 @@ get_archetypes_id :: proc(world: ^World, id: Entity) -> []^Archetype {
 }
 
 @private
-get_archetypes_pair_id_id :: #force_inline proc(world: ^World, rel, tgt: Entity) -> []^Archetype {
-    return get_archetypes_id(world, id_make_pair(rel, tgt))
+get_archetypes_pair :: #force_inline proc(world: ^World, p: Pair) -> []^Archetype {
+    return get_archetypes_id(world, pair_id(world, p))
 }
 
 @private
-get_archetypes_pair_type_id :: #force_inline proc(world: ^World, $Rel: typeid, tgt: Entity) -> []^Archetype {
-    return get_archetypes_id(world, id_make_pair(get_component_id(world, Rel), tgt))
-}
-
-@private
-get_archetypes_pair_id_type :: #force_inline proc(world: ^World, rel: Entity, $Tgt: typeid) -> []^Archetype {
-    return get_archetypes_id(world, id_make_pair(rel, get_component_id(world, Tgt)))
-}
-
-@private
-get_archetypes_pair_type_type :: #force_inline proc(world: ^World, $Rel: typeid, $Tgt: typeid) -> []^Archetype {
-    r := get_component_id(world, Rel)
-    t := get_component_id(world, Tgt)
-    return get_archetypes_id(world, id_make_pair(r, t))
-}
-
-@private
-add_raw :: proc(world: ^World, entity: Entity, id: Entity, data: rawptr) {
+add_raw :: proc(world: ^World, entity: Entity, id: Entity, data: rawptr = nil) {
     if !is_alive(world, entity) do return
 
     record := &world.entity_index[entity_id_idx(entity)]

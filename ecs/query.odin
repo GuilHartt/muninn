@@ -1,17 +1,17 @@
 package ecs
 
+import "core:fmt"
 import "core:hash"
 import "core:slice"
 import "core:mem/virtual"
 
-TermValue :: union { Entity, typeid }
 TermType  :: enum u64 { With, Without }
 
+TermData :: union { Component, Pair }
+
 QueryTermInput :: struct {
-    relation: TermValue,
-    target:   TermValue,
-    mode:     TermType,
-    is_pair:  bool,
+    data: TermData,
+    mode: TermType,
 }
 
 QueryTerm :: struct {
@@ -28,19 +28,13 @@ Query :: struct {
 with :: proc { 
     with_type, 
     with_id,
-    with_pair_id_id,
-    with_pair_type_id,
-    with_pair_id_type,
-    with_pair_type_type,
+    with_pair,
 }
 
 without :: proc { 
     without_type, 
     without_id,
-    without_pair_id_id,
-    without_pair_type_id,
-    without_pair_id_type,
-    without_pair_type_type,
+    without_pair,
 }
 
 query :: proc(world: ^World, inputs: ..QueryTermInput) -> ^Query {
@@ -51,21 +45,9 @@ query :: proc(world: ^World, inputs: ..QueryTermInput) -> ^Query {
         inp := inputs[i]
         final_id: Entity
 
-        r_id: Entity
-        switch v in inp.relation {
-        case Entity: r_id = v
-        case typeid: r_id = get_component_id(world, v)
-        }
-
-        if inp.is_pair {
-            t_id: Entity
-            switch v in inp.target {
-            case Entity: t_id = v
-            case typeid: t_id = get_component_id(world, v)
-            }
-            final_id = id_make_pair(r_id, t_id)
-        } else {
-            final_id = r_id
+        switch v in inp.data {
+        case Component: final_id = resolve_id(world, v)
+        case Pair:      final_id = pair_id(world, v)
         }
 
         terms[i] = QueryTerm{ id = final_id, mode = inp.mode }
@@ -105,113 +87,75 @@ count_entites :: #force_inline proc "contextless" (query: ^Query) -> (count: int
 @private
 with_type :: #force_inline proc($T: typeid) -> QueryTermInput {
     val: typeid = T
-    return QueryTermInput{ relation = val, mode = .With, is_pair = false }
+    return { Component(val), .With }
 }
 
 @private
 with_id :: #force_inline proc(id: Entity) -> QueryTermInput {
-    return QueryTermInput{ relation = id, mode = .With, is_pair = false }
+    return { Component(id), .With }
 }
 
 @private
-with_pair_id_id :: #force_inline proc(rel, tgt: Entity) -> QueryTermInput {
-    return QueryTermInput{ relation = rel, target = tgt, mode = .With, is_pair = true }
-}
-
-@private
-with_pair_type_id :: #force_inline proc($Rel: typeid, tgt: Entity) -> QueryTermInput {
-    r: typeid = Rel
-    return QueryTermInput{ relation = r, target = tgt, mode = .With, is_pair = true }
-}
-
-@private
-with_pair_id_type :: #force_inline proc(rel: Entity, $Tgt: typeid) -> QueryTermInput {
-    t: typeid = Tgt
-    return QueryTermInput{ relation = rel, target = t, mode = .With, is_pair = true }
-}
-
-@private
-with_pair_type_type :: #force_inline proc($Rel: typeid, $Tgt: typeid) -> QueryTermInput {
-    r: typeid = Rel
-    t: typeid = Tgt
-    return QueryTermInput{ relation = r, target = t, mode = .With, is_pair = true }
+with_pair :: #force_inline proc(pair: Pair) -> QueryTermInput {
+    return { pair, .With }
 }
 
 @private
 without_type :: #force_inline proc($T: typeid) -> QueryTermInput {
     val: typeid = T
-    return QueryTermInput{ relation = val, mode = .Without, is_pair = false }
+    return { Component(val), .Without }
 }
 
 @private
 without_id :: #force_inline proc(id: Entity) -> QueryTermInput {
-    return QueryTermInput{ relation = id, mode = .Without, is_pair = false }
+    return { Component(id), .Without }
 }
 
 @private
-without_pair_id_id :: #force_inline proc(rel, tgt: Entity) -> QueryTermInput {
-    return QueryTermInput{ relation = rel, target = tgt, mode = .Without, is_pair = true }
-}
-
-@private
-without_pair_type_id :: #force_inline proc($Rel: typeid, tgt: Entity) -> QueryTermInput {
-    r: typeid = Rel
-    return QueryTermInput{ relation = r, target = tgt, mode = .Without, is_pair = true }
-}
-
-@private
-without_pair_id_type :: #force_inline proc(rel: Entity, $Tgt: typeid) -> QueryTermInput {
-    t: typeid = Tgt
-    return QueryTermInput{ relation = rel, target = t, mode = .Without, is_pair = true }
-}
-
-@private
-without_pair_type_type :: #force_inline proc($Rel: typeid, $Tgt: typeid) -> QueryTermInput {
-    r: typeid = Rel
-    t: typeid = Tgt
-    return QueryTermInput{ relation = r, target = t, mode = .Without, is_pair = true }
+without_pair :: #force_inline proc(pair: Pair) -> QueryTermInput {
+    return { pair, .Without }
 }
 
 @private
 match_query :: proc(query: ^Query, arch: ^Archetype) -> bool {
-    for term in query.terms {
-        if term.id == 0 do break
+	for term in query.terms {
+		if term.id == 0 do break
 
-        found := false
+		found := false
 
-        if id_is_pair(term.id) {
-            rel := id_pair_first(term.id)
-            tgt := id_pair_second(term.id)
+		if id_is_pair(term.id) {
+			rel := id_pair_first(term.id)
+			tgt := id_pair_second(term.id)
 
-            if rel == Wildcard || tgt == Wildcard {
-                for type in arch.types {
-                    if !id_is_pair(type) do continue
-                    
-                    r := id_pair_first(type)
-                    t := id_pair_second(type)
+			if rel == Wildcard || tgt == Wildcard {
+				for type in arch.types {
+					if !id_is_pair(type) do continue
+					
+					r := id_pair_first(type)
+					t := id_pair_second(type)
 
-                    match_rel := (rel == Wildcard) || (rel == r)
-                    match_tgt := (tgt == Wildcard) || (tgt == t)
+					match_rel := (rel == Wildcard) || (rel == r)
+					match_tgt := (tgt == Wildcard) || (tgt == t)
 
-                    if match_rel && match_tgt {
-                        found = true
-                        break
-                    }
-                }
-            } else {
-                _, found = slice.binary_search(arch.types, term.id)
-            }
-        } else {
-            _, found = slice.binary_search(arch.types, term.id)
-        }
+					if match_rel && match_tgt {
+						found = true
+						break
+					}
+				}
+			} else {
+				_, found = slice.binary_search(arch.types, term.id)
+			}
+		} else {
+			_, found = slice.binary_search(arch.types, term.id)
+		}
 
-        if term.mode == .With {
-            if !found do return false
-        } else {
-            if found do return false
-        }
-    }
-    return true
+		if term.mode == .With {
+			if !found do return false
+		} else {
+			if found do return false
+		}
+	}
+	return true
 }
 
 @private
