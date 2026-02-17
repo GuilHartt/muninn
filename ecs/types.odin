@@ -23,3 +23,12 @@ EntityRecord :: struct {
     row:       int,
     gen:       u16,
 }
+
+Iter :: struct {
+    world:  ^World,
+    data:   rawptr,
+    entity: Entity,
+    arch:   ^Archetype,
+    row:    int,
+    count:  int,
+}

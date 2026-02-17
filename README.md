@@ -55,9 +55,7 @@ main :: proc() {
     ecs.add(world, e, Position{0, 0})
     ecs.add(world, e, Velocity{1, 1})
 
-    q := ecs.query(world, ecs.with(Position), ecs.with(Velocity))
-
-    ecs.each(world, q, proc(e: ecs.Entity, pos: ^Position, vel: ^Velocity) {
+    ecs.each(world, proc(it: ecs.Iter, pos: ^Position, vel: ^Velocity) {
         pos.x += vel.x
         pos.y += vel.y
     })
