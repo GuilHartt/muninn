@@ -3,7 +3,9 @@ package ecs
 ID_PAIR_FLAG :: 0x8000_0000_0000_0000
 
 Entity   :: distinct u64
+
 Wildcard :: Entity(0)
+ChildOf  :: Entity(0x7FFFFFFF)
 
 Component :: union { Entity, typeid }
 

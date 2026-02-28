@@ -1,5 +1,6 @@
 package ecs
 
+import "core:c"
 import "core:slice"
 
 create_entity :: proc(world: ^World) -> Entity {
@@ -19,6 +20,21 @@ create_entity :: proc(world: ^World) -> Entity {
 
 destroy_entity :: proc(world: ^World, entity: Entity) {
     if !is_alive(world, entity) do return
+
+    if archtypes := get_archetypes(world, ChildOf, entity); archtypes != nil {
+        children: [dynamic]Entity
+        defer delete(children)
+
+        for arch in archtypes {
+            for child in arch.entities {
+                append(&children, child)
+            }
+        }
+
+        for child in children {
+            destroy_entity(world, child)
+        }
+    }
 
     idx := entity_id_idx(entity)
     record := &world.entity_index[idx]
@@ -245,7 +261,7 @@ remove_pair_type_type :: #force_inline proc(world: ^World, entity: Entity, $Rel,
     ))
 }
 
-@(private="file")
+@(private)
 remove_pair_id_id :: #force_inline proc(world: ^World, entity, rel, tgt: Entity) {
     remove_raw(world, entity, id_make_pair(rel, tgt))
 }
@@ -358,7 +374,9 @@ pair_id :: #force_inline proc(world: ^World, pair: Pair) -> Entity {
 
 @(private, require_results)
 id_make_pair :: #force_inline proc "contextless" (relation, target: Entity) -> Entity {
-    return Entity(ID_PAIR_FLAG | (u64(relation) << 32) | u64(target))
+    rel_idx := u64(relation) & 0xFFFFFFFF
+    tgt_idx := u64(target)   & 0xFFFFFFFF
+    return Entity(ID_PAIR_FLAG | (rel_idx << 32) | tgt_idx)
 }
 
 @(private, require_results)
