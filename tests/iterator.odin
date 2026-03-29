@@ -19,19 +19,16 @@ test_iterator_single :: proc(t: ^testing.T) {
 
     q := ecs.query(world, ecs.with(ValA))
     
-    Ctx :: struct {
-        count, sum: int,
+    count, sum := 0, 0
+
+    it := ecs.iter(world, q, ValA)
+    for a in ecs.next(&it) {
+        count += 1
+        sum += a.x
     }
-    ctx := Ctx{0, 0}
 
-    ecs.each(world, q, proc(it: ecs.Iter, a: ^ValA) {
-        c := cast(^Ctx)it.data
-        c.count += 1
-        c.sum   += a.x
-    }, &ctx)
-
-    testing.expect(t, ctx.count == 10, "Should iterate 10 entities")
-    testing.expect(t, ctx.sum == 45, "Sum of 0..9 should be 45")
+    testing.expect(t, count == 10, "Should iterate 10 entities")
+    testing.expect(t, sum == 45, "Sum of 0..9 should be 45")
 }
 
 @(test)
@@ -48,15 +45,15 @@ test_iterator_multiple_components :: proc(t: ^testing.T) {
 
     called := false
 
-    ecs.each(world, q, proc(it: ecs.Iter, a: ^ValA, b: ^ValB, c: ^ValC) {
-        data := cast(^bool)it.data
-        data^ = true
+    it := ecs.iter(world, q, ValA, ValB, ValC)
+    for a, b, c in ecs.next(&it) {
+        called = true
         a.x += 1
         b.x += 1
         c.x += 1
-    }, &called)
+    }
 
-    testing.expect(t, called, "Iterator callback must be called")
+    testing.expect(t, called, "Iterator must be executed")
 
     val_a := ecs.get(world, e, ValA)
     testing.expect(t, val_a.x == 11, "Value A must be updated")
@@ -87,10 +84,10 @@ test_iterator_multiple_archetypes :: proc(t: ^testing.T) {
     q := ecs.query(world, ecs.with(ValA))
 
     count := 0
-    ecs.each(world, q, proc(it: ecs.Iter, a: ^ValA) {
-        data := cast(^int)it.data
-        data^ += 1
-    }, &count)
+    it := ecs.iter(world, q, ValA)
+    for a in ecs.next(&it) {
+        count += 1
+    }
 
     testing.expect(t, count == 10, "Iterator should cover all archetypes containing ValA")
 }
@@ -109,25 +106,20 @@ test_iterator_optional_component :: proc(t: ^testing.T) {
 
     q := ecs.query(world, ecs.with(ValA))
 
-    Check :: struct {
-        found_nil, found_val: bool
-    }
+    found_nil, found_val := false, false
 
-    ctx := Check{false, false}
-
-    ecs.each(world, q, proc(it: ecs.Iter, a: ^ValA, b: ^ValB) {
-        c := cast(^Check)it.data
-        
+    it := ecs.iter(world, q, ValA, ValB)
+    for a, b in ecs.next(&it) {
         if b == nil {
-            c.found_nil = true
+            found_nil = true
         } else {
-            c.found_val = true
+            found_val = true
             b.x += 1
         }
-    }, &ctx)
+    }
 
-    testing.expect(t, ctx.found_nil, "Should handle missing optional component as nil")
-    testing.expect(t, ctx.found_val, "Should handle existing optional component correctly")
+    testing.expect(t, found_nil, "Should handle missing optional component as nil")
+    testing.expect(t, found_val, "Should handle existing optional component correctly")
 }
 
 @(test)
@@ -140,9 +132,10 @@ test_iterator_no_context :: proc(t: ^testing.T) {
 
     q := ecs.query(world, ecs.with(ValA))
 
-    ecs.each(world, q, proc(it: ecs.Iter, a: ^ValA) {
+    it := ecs.iter(world, q, ValA)
+    for a in ecs.next(&it) {
         a.x = 999
-    })
+    }
 
     val := ecs.get(world, e, ValA)
     testing.expect(t, val.x == 999, "Iterator without context should work")
@@ -156,16 +149,17 @@ test_iterator_auto_simple :: proc(t: ^testing.T) {
     e := ecs.create_entity(world)
     ecs.add(world, e, ValA{100})
 
-    ecs.each(world, proc(it: ecs.Iter, a: ^ValA) {
+    it := ecs.iter(world, ValA)
+    for a in ecs.next(&it) {
         a.x += 1
-    })
+    }
 
     val := ecs.get(world, e, ValA)
     testing.expect(t, val.x == 101, "Auto query should work for single component")
 }
 
 @(test)
-test_iterator_auto_multiple_with_data :: proc(t: ^testing.T) {
+test_iterator_auto_multiple :: proc(t: ^testing.T) {
     world := ecs.create_world()
     defer ecs.destroy_world(world)
 
@@ -178,17 +172,16 @@ test_iterator_auto_multiple_with_data :: proc(t: ^testing.T) {
 
     count := 0
 
-    ecs.each(world, proc(it: ecs.Iter, a: ^ValA, b: ^ValB) {
-        ctx := cast(^int)it.data
-        ctx^ += 1
-        
+    it := ecs.iter(world, ValA, ValB)
+    for a, b in ecs.next(&it) {
+        count += 1
         a.x += b.x
-    }, &count)
+    }
 
     testing.expect(t, count == 1, "Auto query should strictly match all components (AND logic)")
     
     val := ecs.get(world, e, ValA)
-    testing.expect(t, val.x == 30, "Logic inside auto-query callback should execute")
+    testing.expect(t, val.x == 30, "Logic inside auto-query loop should execute")
 }
 
 @(test)
@@ -211,10 +204,10 @@ test_iterator_auto_filter_logic :: proc(t: ^testing.T) {
 
     matches := 0
 
-    ecs.each(world, proc(it: ecs.Iter, a: ^ValA, b: ^ValB, c: ^ValC) {
-        ctx := cast(^int)it.data
-        ctx^ += 1
-    }, &matches)
+    it := ecs.iter(world, ValA, ValB, ValC)
+    for a, b, c in ecs.next(&it) {
+        matches += 1
+    }
 
     testing.expect(t, matches == 1, "Auto query should implicitly create an intersection (AND) of all components")
 }

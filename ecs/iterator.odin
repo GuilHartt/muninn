@@ -1,245 +1,295 @@
 package ecs
 
-each :: proc {
-    each_1, each_1_auto,
-    each_2, each_2_auto,
-    each_3, each_3_auto,
-    each_4, each_4_auto,
-    each_5, each_5_auto,
-    each_6, each_6_auto,
+Iter :: struct {
+    world:    ^World,
+    query:    ^Query,
+    entity:   Entity,
+
+    _arch_idx: int,
+    _row:      int,
 }
 
-@(private="file")
-each_1_auto :: #force_inline proc(world: ^World, task: proc(Iter, ^$A), data: rawptr = nil) {
-    each_1(world, query(world, with(A)), task, data)
+Iter1 :: struct($A: typeid) {
+    using iter: Iter,
+    _view_a: []A,
 }
 
-@(private="file")
-each_2_auto :: #force_inline proc(world: ^World, task: proc(Iter, ^$A, ^$B), data: rawptr = nil) {
-    each_2(world, query(world, with(A), with(B)), task, data)
+Iter2 :: struct($A, $B: typeid) {
+    using iter: Iter,
+    _view_a: []A,
+    _view_b: []B,
 }
 
-@(private="file")
-each_3_auto :: #force_inline proc(world: ^World, task: proc(Iter, ^$A, ^$B, ^$C), data: rawptr = nil) {
-    each_3(world, query(world, with(A), with(B), with(C)), task, data)
+Iter3 :: struct($A, $B, $C: typeid) {
+    using iter: Iter,
+    _view_a: []A,
+    _view_b: []B,
+    _view_c: []C,
 }
 
-@(private="file")
-each_4_auto :: #force_inline proc(world: ^World, task: proc(Iter, ^$A, ^$B, ^$C, ^$D), data: rawptr = nil) {
-    each_4(world, query(world, with(A), with(B), with(C), with(D)), task, data)
+Iter4 :: struct($A, $B, $C, $D: typeid) {
+    using iter: Iter,
+    _view_a: []A,
+    _view_b: []B,
+    _view_c: []C,
+    _view_d: []D,
 }
 
-@(private="file")
-each_5_auto :: #force_inline proc(world: ^World, task: proc(Iter, ^$A, ^$B, ^$C, ^$D, ^$E), data: rawptr = nil) {
-    each_5(world, query(world, with(A), with(B), with(C), with(D), with(E)), task, data)
+Iter5 :: struct($A, $B, $C, $D, $E: typeid) {
+    using iter: Iter,
+    _view_a: []A,
+    _view_b: []B,
+    _view_c: []C,
+    _view_d: []D,
+    _view_e: []E,
 }
 
-@(private="file")
-each_6_auto :: #force_inline proc(world: ^World, task: proc(Iter, ^$A, ^$B, ^$C, ^$D, ^$E, ^$F), data: rawptr = nil) {
-    each_6(world, query(world, with(A), with(B), with(C), with(D), with(E), with(F)), task, data)
+Iter6 :: struct($A, $B, $C, $D, $E, $F: typeid) {
+    using iter: Iter,
+    _view_a: []A,
+    _view_b: []B,
+    _view_c: []C,
+    _view_d: []D,
+    _view_e: []E,
+    _view_f: []F,
 }
 
-@(private="file")
-each_1 :: #force_inline proc(world: ^World, q: ^Query, task: proc(Iter, ^$A), data: rawptr = nil) {
-    it := Iter{ world = world, data = data }
+iter :: proc {
+    iter_1, iter_1_auto,
+    iter_2, iter_2_auto,
+    iter_3, iter_3_auto,
+    iter_4, iter_4_auto,
+    iter_5, iter_5_auto,
+    iter_6, iter_6_auto,
+}
 
-    for arch in q.archetypes {
-        it.arch = arch
-        it.count = arch.len
-        view_a := get_view(world, arch, A)
+next :: proc {
+    next_1,
+    next_2,
+    next_3,
+    next_4,
+    next_5,
+    next_6,
+}
 
-        if view_a != nil {
-            #no_bounds_check for i in 0..<arch.len {
-                it.row = i
-                it.entity = arch.entities[i]
-                task(it, &view_a[i])
-            }
-        } else {
-            #no_bounds_check for i in 0..<arch.len {
-                it.row = i
-                it.entity = arch.entities[i]
-                task(it, nil)
-            }
+@(private)
+iter_1 :: #force_inline proc(world: ^World, q: ^Query, $A: typeid) -> Iter1(A) {
+    return Iter1(A){ iter = { world = world, query = q } }
+}
+
+@(private)
+iter_1_auto :: #force_inline proc(world: ^World, $A: typeid) -> Iter1(A) {
+    return iter_1(world, query(world, with(A)), A)
+}
+
+@(private)
+next_1 :: proc(it: ^Iter1($A)) -> (^A, bool) {
+    for it._arch_idx < len(it.query.archetypes) {
+        arch := it.query.archetypes[it._arch_idx]
+
+        if it._row == 0 {
+            it._view_a = get_view(it.world, arch, A)
         }
+
+        if it._row < arch.len {
+            it.entity = arch.entities[it._row]
+            ptr_a: ^A = it._view_a != nil ? &it._view_a[it._row] : nil
+            it._row += 1
+            return ptr_a, true
+        }
+
+        it._arch_idx += 1
+        it._row = 0
     }
+    return nil, false
 }
 
-@(private="file")
-each_2 :: #force_inline proc(world: ^World, q: ^Query, task: proc(Iter, ^$A, ^$B), data: rawptr = nil) {
-    it := Iter{ world = world, data = data }
-
-    for arch in q.archetypes {
-        it.arch = arch
-        it.count = arch.len
-        view_a := get_view(world, arch, A)
-        view_b := get_view(world, arch, B)
-
-        if view_a != nil && view_b != nil {
-            #no_bounds_check for i in 0..<arch.len {
-                it.row = i
-                it.entity = arch.entities[i]
-                task(it, &view_a[i], &view_b[i])
-            }
-        } else {
-            ptr_a := raw_data(view_a) if view_a != nil else nil
-            ptr_b := raw_data(view_b) if view_b != nil else nil
-            #no_bounds_check for i in 0..<arch.len {
-                it.row = i
-                it.entity = arch.entities[i]
-                val_a := &ptr_a[i] if ptr_a != nil else nil
-                val_b := &ptr_b[i] if ptr_b != nil else nil
-                task(it, val_a, val_b)
-            }
-        }
-    }
+@(private)
+iter_2 :: #force_inline proc(world: ^World, q: ^Query, $A, $B: typeid) -> Iter2(A, B) {
+    return Iter2(A, B){ iter = { world = world, query = q } }
 }
 
-@(private="file")
-each_3 :: #force_inline proc(world: ^World, q: ^Query, task: proc(Iter, ^$A, ^$B, ^$C), data: rawptr = nil) {
-    it := Iter{ world = world, data = data }
-
-    for arch in q.archetypes {
-        it.arch = arch
-        it.count = arch.len
-        view_a := get_view(world, arch, A)
-        view_b := get_view(world, arch, B)
-        view_c := get_view(world, arch, C)
-
-        if view_a != nil && view_b != nil && view_c != nil {
-            #no_bounds_check for i in 0..<arch.len {
-                it.row = i
-                it.entity = arch.entities[i]
-                task(it, &view_a[i], &view_b[i], &view_c[i])
-            }
-        } else {
-            ptr_a := raw_data(view_a) if view_a != nil else nil
-            ptr_b := raw_data(view_b) if view_b != nil else nil
-            ptr_c := raw_data(view_c) if view_c != nil else nil
-            #no_bounds_check for i in 0..<arch.len {
-                it.row = i
-                it.entity = arch.entities[i]
-                val_a := &ptr_a[i] if ptr_a != nil else nil
-                val_b := &ptr_b[i] if ptr_b != nil else nil
-                val_c := &ptr_c[i] if ptr_c != nil else nil
-                task(it, val_a, val_b, val_c)
-            }
-        }
-    }
+@(private)
+iter_2_auto :: #force_inline proc(world: ^World, $A, $B: typeid) -> Iter2(A, B) {
+    return iter_2(world, query(world, with(A), with(B)), A, B)
 }
 
-@(private="file")
-each_4 :: #force_inline proc(world: ^World, q: ^Query, task: proc(Iter, ^$A, ^$B, ^$C, ^$D), data: rawptr = nil) {
-    it := Iter{ world = world, data = data }
+@(private)
+next_2 :: proc(it: ^Iter2($A, $B)) -> (^A, ^B, bool) {
+    for it._arch_idx < len(it.query.archetypes) {
+        arch := it.query.archetypes[it._arch_idx]
 
-    for arch in q.archetypes {
-        it.arch = arch
-        it.count = arch.len
-        view_a := get_view(world, arch, A)
-        view_b := get_view(world, arch, B)
-        view_c := get_view(world, arch, C)
-        view_d := get_view(world, arch, D)
-
-        if view_a != nil && view_b != nil && view_c != nil && view_d != nil {
-            #no_bounds_check for i in 0..<arch.len {
-                it.row = i
-                it.entity = arch.entities[i]
-                task(it, &view_a[i], &view_b[i], &view_c[i], &view_d[i])
-            }
-        } else {
-            ptr_a := raw_data(view_a) if view_a != nil else nil
-            ptr_b := raw_data(view_b) if view_b != nil else nil
-            ptr_c := raw_data(view_c) if view_c != nil else nil
-            ptr_d := raw_data(view_d) if view_d != nil else nil
-            #no_bounds_check for i in 0..<arch.len {
-                it.row = i
-                it.entity = arch.entities[i]
-                val_a := &ptr_a[i] if ptr_a != nil else nil
-                val_b := &ptr_b[i] if ptr_b != nil else nil
-                val_c := &ptr_c[i] if ptr_c != nil else nil
-                val_d := &ptr_d[i] if ptr_d != nil else nil
-                task(it, val_a, val_b, val_c, val_d)
-            }
+        if it._row == 0 {
+            it._view_a = get_view(it.world, arch, A)
+            it._view_b = get_view(it.world, arch, B)
         }
+
+        if it._row < arch.len {
+            it.entity = arch.entities[it._row]
+            ptr_a: ^A = it._view_a != nil ? &it._view_a[it._row] : nil
+            ptr_b: ^B = it._view_b != nil ? &it._view_b[it._row] : nil
+            it._row += 1
+            return ptr_a, ptr_b, true
+        }
+
+        it._arch_idx += 1
+        it._row = 0
     }
+    return nil, nil, false
 }
 
-@(private="file")
-each_5 :: #force_inline proc(world: ^World, q: ^Query, task: proc(Iter, ^$A, ^$B, ^$C, ^$D, ^$E), data: rawptr = nil) {
-    it := Iter{ world = world, data = data }
-
-    for arch in q.archetypes {
-        it.arch = arch
-        it.count = arch.len
-        view_a := get_view(world, arch, A)
-        view_b := get_view(world, arch, B)
-        view_c := get_view(world, arch, C)
-        view_d := get_view(world, arch, D)
-        view_e := get_view(world, arch, E)
-
-        if view_a != nil && view_b != nil && view_c != nil && view_d != nil && view_e != nil {
-            #no_bounds_check for i in 0..<arch.len {
-                it.row = i
-                it.entity = arch.entities[i]
-                task(it, &view_a[i], &view_b[i], &view_c[i], &view_d[i], &view_e[i])
-            }
-        } else {
-            ptr_a := raw_data(view_a) if view_a != nil else nil
-            ptr_b := raw_data(view_b) if view_b != nil else nil
-            ptr_c := raw_data(view_c) if view_c != nil else nil
-            ptr_d := raw_data(view_d) if view_d != nil else nil
-            ptr_e := raw_data(view_e) if view_e != nil else nil
-            #no_bounds_check for i in 0..<arch.len {
-                it.row = i
-                it.entity = arch.entities[i]
-                val_a := &ptr_a[i] if ptr_a != nil else nil
-                val_b := &ptr_b[i] if ptr_b != nil else nil
-                val_c := &ptr_c[i] if ptr_c != nil else nil
-                val_d := &ptr_d[i] if ptr_d != nil else nil
-                val_e := &ptr_e[i] if ptr_e != nil else nil
-                task(it, val_a, val_b, val_c, val_d, val_e)
-            }
-        }
-    }
+@(private)
+iter_3 :: #force_inline proc(world: ^World, q: ^Query, $A, $B, $C: typeid) -> Iter3(A, B, C) {
+    return Iter3(A, B, C){ iter = { world = world, query = q } }
 }
 
-@(private="file")
-each_6 :: #force_inline proc(world: ^World, q: ^Query, task: proc(Iter, ^$A, ^$B, ^$C, ^$D, ^$E, ^$F), data: rawptr = nil) {
-    it := Iter{ world = world, data = data }
+@(private)
+iter_3_auto :: #force_inline proc(world: ^World, $A, $B, $C: typeid) -> Iter3(A, B, C) {
+    return iter_3(world, query(world, with(A), with(B), with(C)), A, B, C)
+}
 
-    for arch in q.archetypes {
-        it.arch = arch
-        it.count = arch.len
-        view_a := get_view(world, arch, A)
-        view_b := get_view(world, arch, B)
-        view_c := get_view(world, arch, C)
-        view_d := get_view(world, arch, D)
-        view_e := get_view(world, arch, E)
-        view_f := get_view(world, arch, F)
+@(private)
+next_3 :: proc(it: ^Iter3($A, $B, $C)) -> (^A, ^B, ^C, bool) {
+    for it._arch_idx < len(it.query.archetypes) {
+        arch := it.query.archetypes[it._arch_idx]
 
-        if view_a != nil && view_b != nil && view_c != nil && view_d != nil && view_e != nil && view_f != nil {
-            #no_bounds_check for i in 0..<arch.len {
-                it.row = i
-                it.entity = arch.entities[i]
-                task(it, &view_a[i], &view_b[i], &view_c[i], &view_d[i], &view_e[i], &view_f[i])
-            }
-        } else {
-            ptr_a := raw_data(view_a) if view_a != nil else nil
-            ptr_b := raw_data(view_b) if view_b != nil else nil
-            ptr_c := raw_data(view_c) if view_c != nil else nil
-            ptr_d := raw_data(view_d) if view_d != nil else nil
-            ptr_e := raw_data(view_e) if view_e != nil else nil
-            ptr_f := raw_data(view_f) if view_f != nil else nil
-            #no_bounds_check for i in 0..<arch.len {
-                it.row = i
-                it.entity = arch.entities[i]
-                val_a := &ptr_a[i] if ptr_a != nil else nil
-                val_b := &ptr_b[i] if ptr_b != nil else nil
-                val_c := &ptr_c[i] if ptr_c != nil else nil
-                val_d := &ptr_d[i] if ptr_d != nil else nil
-                val_e := &ptr_e[i] if ptr_e != nil else nil
-                val_f := &ptr_f[i] if ptr_f != nil else nil
-                task(it, val_a, val_b, val_c, val_d, val_e, val_f)
-            }
+        if it._row == 0 {
+            it._view_a = get_view(it.world, arch, A)
+            it._view_b = get_view(it.world, arch, B)
+            it._view_c = get_view(it.world, arch, C)
         }
+
+        if it._row < arch.len {
+            it.entity = arch.entities[it._row]
+            ptr_a: ^A = it._view_a != nil ? &it._view_a[it._row] : nil
+            ptr_b: ^B = it._view_b != nil ? &it._view_b[it._row] : nil
+            ptr_c: ^C = it._view_c != nil ? &it._view_c[it._row] : nil
+            it._row += 1
+            return ptr_a, ptr_b, ptr_c, true
+        }
+
+        it._arch_idx += 1
+        it._row = 0
     }
+    return nil, nil, nil, false
+}
+
+@(private)
+iter_4 :: #force_inline proc(world: ^World, q: ^Query, $A, $B, $C, $D: typeid) -> Iter4(A, B, C, D) {
+    return Iter4(A, B, C, D){ iter = { world = world, query = q } }
+}
+
+@(private)
+iter_4_auto :: #force_inline proc(world: ^World, $A, $B, $C, $D: typeid) -> Iter4(A, B, C, D) {
+    return iter_4(world, query(world, with(A), with(B), with(C), with(D)), A, B, C, D)
+}
+
+@(private)
+next_4 :: proc(it: ^Iter4($A, $B, $C, $D)) -> (^A, ^B, ^C, ^D, bool) {
+    for it._arch_idx < len(it.query.archetypes) {
+        arch := it.query.archetypes[it._arch_idx]
+
+        if it._row == 0 {
+            it._view_a = get_view(it.world, arch, A)
+            it._view_b = get_view(it.world, arch, B)
+            it._view_c = get_view(it.world, arch, C)
+            it._view_d = get_view(it.world, arch, D)
+        }
+
+        if it._row < arch.len {
+            it.entity = arch.entities[it._row]
+            ptr_a: ^A = it._view_a != nil ? &it._view_a[it._row] : nil
+            ptr_b: ^B = it._view_b != nil ? &it._view_b[it._row] : nil
+            ptr_c: ^C = it._view_c != nil ? &it._view_c[it._row] : nil
+            ptr_d: ^D = it._view_d != nil ? &it._view_d[it._row] : nil
+            it._row += 1
+            return ptr_a, ptr_b, ptr_c, ptr_d, true
+        }
+
+        it._arch_idx += 1
+        it._row = 0
+    }
+    return nil, nil, nil, nil, false
+}
+
+@(private)
+iter_5 :: #force_inline proc(world: ^World, q: ^Query, $A, $B, $C, $D, $E: typeid) -> Iter5(A, B, C, D, E) {
+    return Iter5(A, B, C, D, E){ iter = { world = world, query = q } }
+}
+
+@(private)
+iter_5_auto :: #force_inline proc(world: ^World, $A, $B, $C, $D, $E: typeid) -> Iter5(A, B, C, D, E) {
+    return iter_5(world, query(world, with(A), with(B), with(C), with(D), with(E)), A, B, C, D, E)
+}
+
+@(private)
+next_5 :: proc(it: ^Iter5($A, $B, $C, $D, $E)) -> (^A, ^B, ^C, ^D, ^E, bool) {
+    for it._arch_idx < len(it.query.archetypes) {
+        arch := it.query.archetypes[it._arch_idx]
+
+        if it._row == 0 {
+            it._view_a = get_view(it.world, arch, A)
+            it._view_b = get_view(it.world, arch, B)
+            it._view_c = get_view(it.world, arch, C)
+            it._view_d = get_view(it.world, arch, D)
+            it._view_e = get_view(it.world, arch, E)
+        }
+
+        if it._row < arch.len {
+            it.entity = arch.entities[it._row]
+            ptr_a: ^A = it._view_a != nil ? &it._view_a[it._row] : nil
+            ptr_b: ^B = it._view_b != nil ? &it._view_b[it._row] : nil
+            ptr_c: ^C = it._view_c != nil ? &it._view_c[it._row] : nil
+            ptr_d: ^D = it._view_d != nil ? &it._view_d[it._row] : nil
+            ptr_e: ^E = it._view_e != nil ? &it._view_e[it._row] : nil
+            it._row += 1
+            return ptr_a, ptr_b, ptr_c, ptr_d, ptr_e, true
+        }
+
+        it._arch_idx += 1
+        it._row = 0
+    }
+    return nil, nil, nil, nil, nil, false
+}
+
+@(private)
+iter_6 :: #force_inline proc(world: ^World, q: ^Query, $A, $B, $C, $D, $E, $F: typeid) -> Iter6(A, B, C, D, E, F) {
+    return Iter6(A, B, C, D, E, F){ iter = { world = world, query = q } }
+}
+
+@(private)
+iter_6_auto :: #force_inline proc(world: ^World, $A, $B, $C, $D, $E, $F: typeid) -> Iter6(A, B, C, D, E, F) {
+    return iter_6(world, query(world, with(A), with(B), with(C), with(D), with(E), with(F)), A, B, C, D, E, F)
+}
+
+@(private)
+next_6 :: proc(it: ^Iter6($A, $B, $C, $D, $E, $F)) -> (^A, ^B, ^C, ^D, ^E, ^F, bool) {
+    for it._arch_idx < len(it.query.archetypes) {
+        arch := it.query.archetypes[it._arch_idx]
+
+        if it._row == 0 {
+            it._view_a = get_view(it.world, arch, A)
+            it._view_b = get_view(it.world, arch, B)
+            it._view_c = get_view(it.world, arch, C)
+            it._view_d = get_view(it.world, arch, D)
+            it._view_e = get_view(it.world, arch, E)
+            it._view_f = get_view(it.world, arch, F)
+        }
+
+        if it._row < arch.len {
+            it.entity = arch.entities[it._row]
+            ptr_a: ^A = it._view_a != nil ? &it._view_a[it._row] : nil
+            ptr_b: ^B = it._view_b != nil ? &it._view_b[it._row] : nil
+            ptr_c: ^C = it._view_c != nil ? &it._view_c[it._row] : nil
+            ptr_d: ^D = it._view_d != nil ? &it._view_d[it._row] : nil
+            ptr_e: ^E = it._view_e != nil ? &it._view_e[it._row] : nil
+            ptr_f: ^F = it._view_f != nil ? &it._view_f[it._row] : nil
+            it._row += 1
+            return ptr_a, ptr_b, ptr_c, ptr_d, ptr_e, ptr_f, true
+        }
+
+        it._arch_idx += 1
+        it._row = 0
+    }
+    return nil, nil, nil, nil, nil, nil, false
 }

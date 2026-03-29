@@ -55,10 +55,11 @@ main :: proc() {
     ecs.add(world, e, Position{0, 0})
     ecs.add(world, e, Velocity{1, 1})
 
-    ecs.each(world, proc(it: ecs.Iter, pos: ^Position, vel: ^Velocity) {
+    it := ecs.iter(world, Position, Velocity)
+    for vel, pos in ecs.next(&it) {
         pos.x += vel.x
         pos.y += vel.y
-    })
+    }
 
     ecs.destroy_world(world)
 }
